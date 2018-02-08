@@ -53,9 +53,12 @@ class plutino:
         return np.log10(np.random.random(self.size)*(h1s10-h0s10) + h0s10) / alpha
         
     def kep_to_xyz(a, e, i, arg, node, M):
+        # compute eccentric anomaly
         f = lambda E, M, e: E-e*np.sin(E)-M
         E0 = M
         E = newton(f, E0, args=(M, e))
+        # compute eccentric anomaly
+        v = np.arctan2(((1 + e)/(1 - e))**0.5 * np.tan(E/2.))
         
         
 def main():
