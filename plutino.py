@@ -23,7 +23,7 @@ class plutino:
         self.node = self.gen_node()
         self.arg = self.gen_arg(self.phi, self.M, self.node, self.lambda_N)
         self.H = self.gen_H()
-        cut = self.e > 0
+        cut = (self.e > 0) * (~np.isnan(self.i))
         self.a = self.a[cut]
         self.e = self.e[cut]
         self.i = self.i[cut]
@@ -33,8 +33,14 @@ class plutino:
         self.node = self.node[cut]
         self.arg = self.arg[cut]
         self.H = self.H[cut]
-        self.X, self.Y, self.Z = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M))
+        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i,\
+                                                  self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
+        self.X = np.array(X)
+        self.Y = np.array(Y)
+        self.Z = np.array(Z)
+        self.r = np.array(r)
         self.xyz_to_equa(self.X, self.Y, self.Z)
+        self.H_to_mag()
     
     def gen_a(self):
         return 39.45 + np.random.random(self.size) * 0.4 - 0.2
@@ -81,7 +87,7 @@ class plutino:
         X = r * (np.cos(node) * np.cos(arg + v) - np.sin(node) * np.sin(arg + v) * np.cos(i))
         Y = r * (np.sin(node) * np.cos(arg + v) + np.cos(node) * np.sin(arg + v) * np.cos(i))
         Z = r * (np.sin(i) * np.sin(arg + v))
-        return X, Y, Z
+        return X, Y, Z, r
         
     def xyz_to_equa(self, X0, Y0, Z0):
         earth = planets['earth']
@@ -89,14 +95,23 @@ class plutino:
         t = ts.tai(jd=self.mjd+2400000.500428) #37 leap seconds
         epsilon =  23.43694 * np.pi/180.
         x_earth, y_earth, z_earth = earth.at(t).position.au
-        X = np.array(X0) - x_earth
-        Y = np.array(Y0) * np.cos(epsilon) + np.array(Z0) * np.sin(epsilon)  - y_earth
-        Z = np.array(Y0) * np.sin(epsilon) - np.array(Z0) * np.cos(epsilon) - z_earth
+        self.earth_dis = (x_earth**2 + y_earth**2 + z_earth**2)**0.5
+        X = X0 - x_earth
+        Y = Y0 * np.cos(epsilon) + Z0 * np.sin(epsilon)  - y_earth
+        Z = Y0 * np.sin(epsilon) - Z0 * np.cos(epsilon) - z_earth
+        self.delta = (X**2 + Y**2+ Z**2)**0.5
         self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
         self.ra = np.arctan2(Y, X) % (2*np.pi)
         
+    def H_to_mag(self):
+        phase = np.arccos((self.r**2 + self.delta**2 - self.earth_dis**2) / (2 * self.r * self.delta))
+        phase_integral = 2/3. * ((1-phase/np.pi)*np.cos(phase) + 1/np.pi*np.sin(phase))
+        self.mag = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
+        
+        
+        
 def main():
-    p = plutino()
+    p = plutino(size = 2000, e_c = 0.3, e_sigma = 0.01, amp_c = 1, amp_max = 2, amp_min = 0, i_sigma=12)
     
 
 if __name__ == '__main__':
