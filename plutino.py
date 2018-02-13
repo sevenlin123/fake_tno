@@ -13,7 +13,7 @@ class plutino:
                  amp_c = 75, amp_max = 155, amp_min = 0):
         self.size = size
         self.mjd = mjd
-        self.lambda_N = 0
+        self.lambda_N = 5.043
         self.a = self.gen_a()
         self.e = self.gen_e(e_c, e_sigma)
         self.i = self.gen_i(i_sigma)
@@ -112,6 +112,7 @@ class plutino:
         
 def main():
     p = plutino(size = 2000, e_c = 0.3, e_sigma = 0.01, amp_c = 1, amp_max = 2, amp_min = 0, i_sigma=12)
+    print p.ra[:100], p.dec[:100], p.mag[:100]
     
 
 if __name__ == '__main__':
