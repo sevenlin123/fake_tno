@@ -69,9 +69,17 @@ class plutino:
         Z = r * (np.sin(i) * np.sin(arg + v))
         return X, Y, Z
         
-    def xyz_to_equa(self, X, Y, Z):
-        dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
-        ra = np.arctan2(Y, X)
+    def xyz_to_equa(self, X0, Y0, Z0):
+        earth = planets['earth']
+        ts = load.timescale()
+        t = ts.tai(jd=self.mjd+2400000.500428) #37 leap seconds
+        epsilon =  23.43694 * np.pi/180.
+        x_earth, y_earth, z_earth = earth.at(t).position.au
+        X = np.array(X0) - x_earth
+        Y = np.array(Y0) * np.cos(epsilon) + np.array(Z0) * np.sin(epsilon)  - y_earth
+        Z = np.array(Y0) * np.sin(epsilon) - np.array(Z0) * np.cos(epsilon) - z_earth
+        self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
+        self.ra = np.arctan2(Y, X) % (2*np.pi)
         
 def main():
     p = plutino()
