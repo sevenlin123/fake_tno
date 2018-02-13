@@ -9,8 +9,9 @@ class plutino:
     units: au, radius
     
     """
-    def __init__(self):
-        self.size = 1000
+    def __init__(self, size = 1000, mjd = 57023):
+        self.size = size
+        self.mjd = mjd
         self.lambda_N = 0
         self.a = self.gen_a()
         self.e = self.gen_e()
@@ -20,7 +21,19 @@ class plutino:
         self.M = self.gen_M()
         self.node = self.gen_node()
         self.arg = self.gen_arg(self.phi, self.M, self.node, self.lambda_N)
-        self.X, self.Y, self.Z = map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M)
+        self.H = self.gen_H()
+        cut = self.e > 0
+        self.a = self.a[cut]
+        self.e = self.e[cut]
+        self.i = self.i[cut]
+        self.amp = self.amp[cut]
+        self.phi = self.phi[cut]
+        self.M = self.M[cut]
+        self.node = self.node[cut]
+        self.arg = self.arg[cut]
+        self.H = self.H[cut]
+        self.X, self.Y, self.Z = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M))
+        self.xyz_to_equa(self.X, self.Y, self.Z)
     
     def gen_a(self):
         return 39.45 + np.random.random(self.size) * 0.4 - 0.2
@@ -32,19 +45,19 @@ class plutino:
         return np.arcsin(np.random.rayleigh(scale = 12 * np.pi/180., size = self.size))
         
     def gen_amp(self):
-        return np.random.triangular(0, 75, 155, size = self.size) * np.pi / 180.
+        return np.random.triangular(0, 5, 10, size = self.size) * np.pi / 180.
     
     def gen_phi(self, amp):
-        return np.pi + amp * np.sin(2*np.pi*np.random.random(self.size))
+        return np.pi + amp * np.sin(2*np.pi*np.random.random(self.size)) 
         
     def gen_M(self):
-        return 2*np.pi*np.random.random(self.size)
+        return 4*np.pi*np.random.random(self.size)
         
     def gen_node(self):
-        return 2*np.pi*np.random.random(self.size)
+        return 2*np.pi*np.random.random(self.size) % (2*np.pi)
         
     def gen_arg(self, phi, M, node, lambda_N):
-        return 0.5*phi - 1.5*M - node + lambda_N
+        return (0.5*phi - 1.5*M - node + lambda_N) % (2*np.pi)
         
     def gen_H(self):
         alpha = 0.9
