@@ -9,14 +9,15 @@ class plutino:
     units: au, radius
     
     """
-    def __init__(self, size = 1000, mjd = 57023):
+    def __init__(self, size = 1000, mjd = 57023, e_c = 0.175, e_sigma = 0.06, i_sigma = 12,\
+                 amp_c = 75, amp_max = 155, amp_min = 0):
         self.size = size
         self.mjd = mjd
         self.lambda_N = 0
         self.a = self.gen_a()
-        self.e = self.gen_e()
-        self.i = self.gen_i()
-        self.amp = self.gen_amp()
+        self.e = self.gen_e(e_c, e_sigma)
+        self.i = self.gen_i(i_sigma)
+        self.amp = self.gen_amp(amp_c, amp_max, amp_min)
         self.phi = self.gen_phi(self.amp)
         self.M = self.gen_M()
         self.node = self.gen_node()
@@ -38,14 +39,14 @@ class plutino:
     def gen_a(self):
         return 39.45 + np.random.random(self.size) * 0.4 - 0.2
         
-    def gen_e(self):
-        return np.random.normal(loc=0.175, scale=0.06, size = self.size)
+    def gen_e(self, e_c, e_sigma):
+        return np.random.normal(loc=e_c, scale=e_sigma, size = self.size)
         
-    def gen_i(self):
-        return np.arcsin(np.random.rayleigh(scale = 12 * np.pi/180., size = self.size))
+    def gen_i(self, i_sigma):
+        return np.arcsin(np.random.rayleigh(scale = i_sigma * np.pi/180., size = self.size))
         
-    def gen_amp(self):
-        return np.random.triangular(0, 5, 10, size = self.size) * np.pi / 180.
+    def gen_amp(self, amp_c, amp_max, amp_min):
+        return np.random.triangular(amp_min, amp_c, amp_max, size = self.size) * np.pi / 180.
     
     def gen_phi(self, amp):
         return np.pi + amp * np.sin(2*np.pi*np.random.random(self.size)) 
