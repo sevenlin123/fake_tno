@@ -13,7 +13,8 @@ class plutino:
                  amp_c = 75, amp_max = 155, amp_min = 0):
         self.size = size
         self.mjd = mjd
-        self.lambda_N = 5.043
+        self.lambda_N = None
+        self.neptune_lambda()
         self.a = self.gen_a()
         self.e = self.gen_e(e_c, e_sigma)
         self.i = self.gen_i(i_sigma)
@@ -21,7 +22,7 @@ class plutino:
         self.phi = self.gen_phi(self.amp)
         self.M = self.gen_M()
         self.node = self.gen_node()
-        self.arg = self.gen_arg(self.phi, self.M, self.node, self.lambda_N)
+        self.arg = self.gen_arg()
         self.H = self.gen_H()
         cut = (self.e > 0) * (~np.isnan(self.i))
         self.a = self.a[cut]
@@ -41,6 +42,7 @@ class plutino:
         self.r = np.array(r)
         self.xyz_to_equa(self.X, self.Y, self.Z)
         self.H_to_mag()
+        
     
     def gen_a(self):
         return 39.45 + np.random.random(self.size) * 0.4 - 0.2
@@ -63,8 +65,8 @@ class plutino:
     def gen_node(self):
         return 2*np.pi*np.random.random(self.size) % (2*np.pi)
         
-    def gen_arg(self, phi, M, node, lambda_N):
-        return (0.5*phi - 1.5*M - node + lambda_N) % (2*np.pi)
+    def gen_arg(self):
+        return (0.5*self.phi - 1.5*self.M - self.node + self.lambda_N) % (2*np.pi)
         
     def gen_H(self):
         alpha = 0.9
@@ -74,6 +76,19 @@ class plutino:
         h1s10 = 10**(alpha*h1)
         return np.log10(np.random.random(self.size)*(h1s10-h0s10) + h0s10) / alpha
         
+    def H_to_mag(self):
+        phase = np.arccos((self.r**2 + self.delta**2 - self.earth_dis**2) / (2 * self.r * self.delta))
+        phase_integral = 2/3. * ((1-phase/np.pi)*np.cos(phase) + 1/np.pi*np.sin(phase))
+        self.mag = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
+        
+    def neptune_lambda(self):
+        neptune = planets[8]
+        ts = load.timescale()
+        t = ts.tai(jd=self.mjd+2400000.500428) #37 leap seconds        
+        self.x_n, self.y_n, self.z_n = neptune.at(t).ecliptic_position().au
+        self.lambda_N = np.arctan2(self.y_n, self.x_n) % (2*np.pi)
+        #print self.lambda_N 
+
     def kep_to_xyz(self, a, e, i, arg, node, M):
         # compute eccentric anomaly
         f = lambda E, M, e: E - e * np.sin(E) - M
@@ -102,12 +117,7 @@ class plutino:
         self.delta = (X**2 + Y**2+ Z**2)**0.5
         self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
         self.ra = np.arctan2(Y, X) % (2*np.pi)
-        
-    def H_to_mag(self):
-        phase = np.arccos((self.r**2 + self.delta**2 - self.earth_dis**2) / (2 * self.r * self.delta))
-        phase_integral = 2/3. * ((1-phase/np.pi)*np.cos(phase) + 1/np.pi*np.sin(phase))
-        self.mag = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
-        
+
         
         
 def main():
