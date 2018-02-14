@@ -87,7 +87,6 @@ class plutino:
         t = ts.tai(jd=self.mjd+2400000.500428) #37 leap seconds        
         self.x_n, self.y_n, self.z_n = neptune.at(t).ecliptic_position().au
         self.lambda_N = np.arctan2(self.y_n, self.x_n) % (2*np.pi)
-        #print self.lambda_N 
 
     def kep_to_xyz(self, a, e, i, arg, node, M):
         # compute eccentric anomaly
@@ -96,7 +95,7 @@ class plutino:
         E = newton(f, E0, args=(M, e))
         # compute true anomaly
         v = 2 * np.arctan2((1 + e)**0.5*np.sin(E/2.), (1 - e)**0.5*np.cos(E/2.))
-        # compute the radius
+        # compute the barycentric distance
         r = a * (1 - e*np.cos(E))
         # compute X,Y,Z
         X = r * (np.cos(node) * np.cos(arg + v) - np.sin(node) * np.sin(arg + v) * np.cos(i))
@@ -112,12 +111,11 @@ class plutino:
         x_earth, y_earth, z_earth = earth.at(t).position.au
         self.earth_dis = (x_earth**2 + y_earth**2 + z_earth**2)**0.5
         X = X0 - x_earth
-        Y = Y0 * np.cos(epsilon) + Z0 * np.sin(epsilon)  - y_earth
-        Z = Y0 * np.sin(epsilon) - Z0 * np.cos(epsilon) - z_earth
+        Y = Y0 * np.cos(epsilon) - Z0 * np.sin(epsilon)  - y_earth
+        Z = Y0 * np.sin(epsilon) + Z0 * np.cos(epsilon) - z_earth
         self.delta = (X**2 + Y**2+ Z**2)**0.5
         self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
         self.ra = np.arctan2(Y, X) % (2*np.pi)
-
         
         
 def main():
