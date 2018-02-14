@@ -79,7 +79,10 @@ class plutino:
     def H_to_mag(self):
         phase = np.arccos((self.r**2 + self.delta**2 - self.earth_dis**2) / (2 * self.r * self.delta))
         phase_integral = 2/3. * ((1-phase/np.pi)*np.cos(phase) + 1/np.pi*np.sin(phase))
-        self.mag = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
+        self.mag_g = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
+        self.mag_r = self.mag_g - 0.5
+        self.mag_i = self.mag_r - 0.5
+        self.mag_z = self.mag_i - 0.5
         
     def neptune_lambda(self):
         neptune = planets[8]
@@ -116,6 +119,7 @@ class plutino:
         self.delta = (X**2 + Y**2+ Z**2)**0.5
         self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
         self.ra = np.arctan2(Y, X) % (2*np.pi)
+
         
         
 def main():
