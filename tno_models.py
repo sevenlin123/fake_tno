@@ -1,7 +1,7 @@
 import numpy as np
 from skyfield.api import load, Topos
 from scipy.optimize import newton
-planets = load('de423.bsp')
+planets = load('de422.bsp')
 
 
 class Resonant:
@@ -36,8 +36,8 @@ class Resonant:
     def H_to_mag(self):
         phase = np.arccos((self.r**2 + self.delta**2 - self.earth_dis**2) / (2 * self.r * self.delta))
         phase_integral = 2/3. * ((1-phase/np.pi)*np.cos(phase) + 1/np.pi*np.sin(phase))
-        self.mag_g = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
-        self.mag_r = self.mag_g - 0.5
+        self.mag_r = self.H + 2.5 * np.log10((self.r**2 * self.delta**2) / phase_integral)
+        self.mag_g = self.mag_r + 0.5
         self.mag_i = self.mag_r - 0.5
         self.mag_z = self.mag_i - 0.5
         
@@ -63,20 +63,20 @@ class Resonant:
         Z = r * (np.sin(i) * np.sin(arg + v))
         return X, Y, Z, r
         
-    def xyz_to_equa(self, X0, Y0, Z0):
+    def xyz_to_equa(self, X0, Y0, Z0, epoch):
         earth = planets['earth']
         ts = load.timescale()
-        t = ts.tai(jd=self.mjd+2400000.500428) #37 leap seconds
+        t = ts.tai(jd=epoch+2400000.500428) #37 leap seconds
         epsilon =  23.43694 * np.pi/180.
         x_earth, y_earth, z_earth = earth.at(t).position.au
-        self.earth_dis = (x_earth**2 + y_earth**2 + z_earth**2)**0.5
+        earth_dis = (x_earth**2 + y_earth**2 + z_earth**2)**0.5
         X = X0 - x_earth
         Y = Y0 * np.cos(epsilon) - Z0 * np.sin(epsilon)  - y_earth
         Z = Y0 * np.sin(epsilon) + Z0 * np.cos(epsilon) - z_earth
-        self.delta = (X**2 + Y**2+ Z**2)**0.5
-        self.dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
-        self.ra = np.arctan2(Y, X) % (2*np.pi)
-
+        delta = (X**2 + Y**2+ Z**2)**0.5
+        dec = np.arcsin(Z/(X**2+Y**2+Z**2)**0.5)
+        ra = np.arctan2(Y, X) % (2*np.pi)
+        return ra, dec, delta, earth_dis
 
 class plutino(Resonant):
     """
@@ -84,7 +84,7 @@ class plutino(Resonant):
     units: au, radius
     
     """
-    def __init__(self, size = 1000, mjd = 57023, e_c = 0.175, e_sigma = 0.06, i_sigma = 12, amp_c = 75, amp_max = 155, amp_min = 0, h0 = 0, h1 = 9.5):
+    def __init__(self, size = 1000, mjd = 57023, e_c = 0.175, e_sigma = 0.06, i_sigma = 12, amp_c = 75, amp_max = 155, amp_min = 0, h0 = 0, h1 = 8.5):
         self.size = size
         self.mjd = mjd
         self.lambda_N = None
@@ -105,18 +105,20 @@ class plutino(Resonant):
         self.i = self.i[cut]
         self.amp = self.amp[cut]
         self.phi = self.phi[cut]
-        self.M = self.M[cut]
+        self.M = self.M[cut] % (2*np.pi)
         self.node = self.node[cut]
         self.arg = self.arg[cut]
         self.H = self.H[cut]
-        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i,\
-                                self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
+        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
         self.X = np.array(X)
         self.Y = np.array(Y)
         self.Z = np.array(Z)
         self.r = np.array(r)
-        self.xyz_to_equa(self.X, self.Y, self.Z)
+        self.ra, self.dec, self.delta, self.earth_dis = self.xyz_to_equa(self.X, self.Y, self.Z, self.mjd)
         self.H_to_mag()
+        self.peri_date = self.mjd - (self.a**3 / 0.000295912208)**0.5 * self.M
+        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
     
     def gen_a(self):
@@ -138,7 +140,7 @@ class trojan(Resonant):
     units: au, radius
     
     """
-    def __init__(self, size = 1000, mjd = 57023, e_c = 0.04, e_sigma =0.04, i_sigma = 12, amp_c = 10, amp_max = 25, amp_min = 5, h0 = 0, h1 = 10):
+    def __init__(self, size = 1000, mjd = 57023, e_c = 0.04, e_sigma =0.04, i_sigma = 12, amp_c = 10, amp_max = 25, amp_min = 5, h0 = 0, h1 = 9.5):
         self.size = size
         self.mjd = mjd
         self.lambda_N = None
@@ -158,20 +160,21 @@ class trojan(Resonant):
         self.i = self.i[cut]
         self.amp = self.amp[cut]
         self.phi = self.phi[cut]
-        self.M = self.M[cut]
+        self.M = self.M[cut] % (2*np.pi)
         self.node = self.node[cut]
         self.arg = self.arg[cut]
         self.H = self.H[cut]
-        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i,\
-                                self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
+        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
         self.X = np.array(X)
         self.Y = np.array(Y)
         self.Z = np.array(Z)
         self.r = np.array(r)
-        self.xyz_to_equa(self.X, self.Y, self.Z)
+        self.ra, self.dec, self.delta, self.earth_dis = self.xyz_to_equa(self.X, self.Y, self.Z, self.mjd)
         self.H_to_mag()
+        self.peri_date = self.mjd - (self.a**3 / 0.000295912208)**0.5 * self.M
+        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
-    
     def gen_a(self):
         return 30.025 + np.random.random(self.size) * 0.25 - 0.125
             
@@ -190,7 +193,7 @@ class twotino(Resonant):
     units: au, radius
     
     """
-    def __init__(self, size = 1000, mjd = 57023, e_c = 0.2, e_sigma =0.06, i_sigma = 6, amp_c = 10, amp_max = 25, amp_min = 5, h0 = 0, h1 = 8):
+    def __init__(self, size = 1000, mjd = 57023, e_c = 0.2, e_sigma =0.06, i_sigma = 6, amp_c = 10, amp_max = 25, amp_min = 5, h0 = 0, h1 = 7):
         self.size = size
         self.mjd = mjd
         self.lambda_N = None
@@ -212,24 +215,23 @@ class twotino(Resonant):
         self.i = self.i[cut]
         self.amp = self.amp[cut]
         self.phi = self.phi[cut]
-        self.M = self.M[cut]
+        self.M = self.M[cut] % (2*np.pi)
         self.node = self.node[cut]
         self.arg = self.arg[cut]
         self.H = self.H[cut]
-        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i,\
-                                self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
+        X, Y, Z, r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, self.M)) # r**2 = X**2 + Y**2 + Z**2
         self.X = np.array(X)
         self.Y = np.array(Y)
         self.Z = np.array(Z)
         self.r = np.array(r)
-        self.xyz_to_equa(self.X, self.Y, self.Z)
+        self.ra, self.dec, self.delta, self.earth_dis = self.xyz_to_equa(self.X, self.Y, self.Z, self.mjd)
         self.H_to_mag()
+        self.peri_date = self.mjd - (self.a**3 / 0.000295912208)**0.5 * self.M
+        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
     def gen_phi0(self):
         self.phi0 = np.random.randint(-1, 2, self.size)
-        
-    #def gen_e(self):
-    #    return np.random.random(self.size) * 0.3 + 0.1 
     
     def gen_a(self):
         return 47.8 + np.random.random(self.size) * 0.4 - 0.2
@@ -263,13 +265,35 @@ class twotino(Resonant):
     def gen_arg(self):
         return (self.phi - 2 * self.M - self.node + self.lambda_N) % (2*np.pi)
         
+def output_csv(fake_tnos):
+    f = fake_tnos
+    a = f.a
+    e = f.e
+    inc = f.i * 180 / np.pi
+    omega = f.arg * 180 / np.pi
+    Omega = f.node * 180 / np.pi
+    omega_bar = (omega + Omega) % 360.
+    ma = f.M
+    epoch_M = f.mjd - 15019.5
+    H = f.H
+    mag = f.mag_r
+    sun_dist = f.r
+    ra = f.ra * 180 / np.pi
+    dec = f.dec * 180 / np.pi
+    peri_date = f.peri_date - 15019.5
+    peri_ra = f.ra_peri * 180 / np.pi
+    peri_dec = f.dec_peri * 180 / np.pi
+    q = f.q
+    print('orbid,a,e,inc,omega,Omega,omega_bar,ma,epoch_M,H,mag,sun_dist,ra,dec,peri_date,peri_ra,peri_dec,q')
+    for i in range(len(a)):
+        print('{0:07},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17}'.format(
+                i+1,a[i],e[i],inc[i],omega[i], Omega[i], omega_bar[i],ma[i],epoch_M,H[i],mag[i],
+                sun_dist[i],ra[i],dec[i],peri_date[i],peri_ra[i],peri_dec[i],q[i]))
         
 def main():
     #p = plutino(size = 2000, e_c = 0.3, e_sigma = 0.01, amp_c = 1, amp_max = 2, amp_min = 0, i_sigma=12)
-    p = plutino(size = 2000000, mjd=57023)
-    #for i in zip(p.a, p.e, p.i, p.arg, p.node, p.M, p.H):
-    #    print i
-    print p.mag_g.min(), (p.mag_g < 23.5).sum()
+    p = plutino(size = 1000000, mjd=57023)
+    output_csv(p)
     
 
 if __name__ == '__main__':
