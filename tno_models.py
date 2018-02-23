@@ -7,7 +7,7 @@
 # Author: 
 # Edward Lin: hsingwel@umich.edu
 #
-# v0.1: trojan, plutino and twotino (close complete) models
+# v0.1: trojan, plutino and twotino (close to complete) models
 #
 ##########################################################################
 
