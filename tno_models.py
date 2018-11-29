@@ -1,6 +1,6 @@
 ##########################################################################
 #
-# tno_models.py, version 0.3.1
+# tno_models.py, version 0.3.2
 #
 # Generate resonant tno models 
 #
@@ -11,6 +11,7 @@
 # v0.2: 4:1 toy model
 # v0.3: modify trojan model
 # v0.3.1: fix mean anomaly from radian to degree
+# v0.3.2: fix q calculation 
 ##########################################################################
 
 
@@ -169,7 +170,7 @@ class plutino(Resonant):
         self.H_to_mag() # generate apparent magnitude 
         self.period = (self.a**3 * 4*np.pi**2/2.9630927492415936E-04)**0.5 # calculate orbital period
         self.peri_date = (self.mjd - (self.a**3 /2.9630927492415936E-04)**0.5 * self.M) + self.period # calculate next perihelion date
-        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a)))) # ecliptic Cartesian position at next perihelion date
+        X_peri, Y_peri, Z_peri, self.r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a)))) # ecliptic Cartesian position at next perihelion date
         self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date) # Equatorial position at next perihelion date
         
     
@@ -226,7 +227,7 @@ class trojan(Resonant):
         self.H_to_mag()
         self.period = (self.a**3 * 4*np.pi**2/2.9630927492415936E-04)**0.5 # calculate orbital period
         self.peri_date = (self.mjd - (self.a**3 /2.9630927492415936E-04)**0.5 * self.M) + self.period # calculate next perihelion date
-        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        X_peri, Y_peri, Z_peri, self.r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
         self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
     def gen_e(self, e_sigma):
@@ -294,7 +295,7 @@ class twotino(Resonant):
         self.H_to_mag()
         self.period = (self.a**3 * 4*np.pi**2/2.9630927492415936E-04)**0.5 # calculate orbital period
         self.peri_date = (self.mjd - (self.a**3 /2.9630927492415936E-04)**0.5 * self.M) + self.period # calculate next perihelion date
-        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        X_peri, Y_peri, Z_peri, self.r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
         self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
     def gen_phi0(self):
@@ -382,7 +383,7 @@ class fourone(Resonant):
         self.H_to_mag()
         self.period = (self.a**3 * 4*np.pi**2/2.9630927492415936E-04)**0.5 # calculate orbital period
         self.peri_date = (self.mjd - (self.a**3 /2.9630927492415936E-04)**0.5 * self.M) + self.period # calculate next perihelion date
-        X_peri, Y_peri, Z_peri, self.q = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
+        X_peri, Y_peri, Z_peri, self.r = zip(*map(self.kep_to_xyz, self.a, self.e, self.i, self.arg, self.node, np.zeros(len(self.a))))
         self.ra_peri, self.dec_peri, self.delta_peri, self.earth_dis_peri = self.xyz_to_equa(np.array(X_peri), np.array(Y_peri), np.array(Z_peri), self.peri_date)
         
     def gen_phi0(self):
@@ -453,15 +454,16 @@ def output_csv(fake_tnos):
     peri_date = f.peri_date - 15019.5
     peri_ra = f.ra_peri 
     peri_dec = f.dec_peri 
-    q = f.q
+    r = f.r
+    q = a * (1-e)
     gr = f.gr
     ri = f.ri
     iz = f.iz
-    print('orbid,a,e,inc,omega,Omega,omega_bar,ma,epoch_M,H,mag,sun_dist,ra,dec,peri_date,peri_ra,peri_dec,q,gr,ri,iz')
+    print('orbid,a,e,inc,omega,Omega,omega_bar,ma,epoch_M,H,mag,sun_dist,ra,dec,peri_date,peri_ra,peri_dec,r,gr,ri,iz')
     for i in range(len(a)):
         print('{0:07},{1},{2},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{18},{19},{20}'.format(
                 i+1,a[i],e[i],inc[i],omega[i], Omega[i], omega_bar[i],ma[i],epoch_M,H[i],mag[i],
-                sun_dist[i],ra[i],dec[i],peri_date[i],peri_ra[i],peri_dec[i],q[i],gr[i],ri[i],iz[i]))
+                sun_dist[i],ra[i],dec[i],peri_date[i],peri_ra[i],peri_dec[i],r[i],gr[i],ri[i],iz[i]))
 
 
 def output_oorb(fake_tnos):
@@ -487,7 +489,7 @@ def output_oorb(fake_tnos):
     peri_date = f.peri_date
     peri_ra = f.ra_peri * 180 / np.pi
     peri_dec = f.dec_peri * 180 / np.pi
-    q = f.q
+    q = a*(1-e)
     print('!!OID FORMAT q e i node argperi t_p H t_0 INDEX N_PAR MOID COMPCODE')
     for i in range(len(a)):
         print('{0:08} COM {1} {2} {3} {4} {5} {6} {7} {8} 1 6 -0.100000000000000E+01 OPENORB'.format(i+1, q[i], e[i], inc[i], Omega[i], omega[i], peri_date[i], H[i], epoch_M))
@@ -496,9 +498,10 @@ def output_oorb(fake_tnos):
 def main():
     #p = plutino(size = 2000, e_c = 0.3, e_sigma = 0.01, amp_c = 1, amp_max = 2, amp_min = 0, i_sigma=12)
     #p = plutino(size = 2000, mjd=58423)
-    t = trojan(size = 2500, mjd=58423, i_sigma = 26, L=5)
-    #output_csv(t)
-    output_oorb(t)
+    #t = trojan(size = 2500, mjd=59661.0, i_sigma = 26, L=5)
+    t = trojan(size = 1000, mjd=63314.0, i_sigma = 26, L=5)
+    output_csv(t)
+    #output_oorb(t)
 
 if __name__ == '__main__':
     main()
